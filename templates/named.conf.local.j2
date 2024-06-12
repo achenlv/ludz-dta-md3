@@ -1,0 +1,6 @@
+{% for key, vhost in vhosts.items() %}
+zone "{{ vhost.domain }}" {
+  type primary;
+  file "/etc/bind/zones/db.{{ vhost.domain }}";
+};
+{% endfor %}

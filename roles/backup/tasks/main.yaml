@@ -1,0 +1,31 @@
+---
+- name: Izveido arhīva mapi
+  file:
+    path: "{{ backup_dir }}"
+    state: directory
+
+- name: Izveidot Cron uzdevumu
+  cron:
+    name: "Mājas lapu rezerves kopijas"
+    minute: "0"
+    hour: "*/1"
+    day: "*"
+    month: "*"
+    job: "tar -czf /var/backup/www_$(date +\"%Y%m%d%H%M%S\").tar.gz /var/www/"
+    user: root
+
+- name: Reģistrē esošos arhīvus
+  find:
+    paths: "/var/backup"
+    patterns: "www_*.tar.gz"
+  register: result
+
+- name: Sakārtot arhīvus pēc vecuma
+  set_fact:
+    pecvecuma: "{{ result.files | sort(attribute='mtime') | map(attribute='path') }}"
+
+- name: Dzēst vecākos arhīvus
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ pecvecuma[:-5] }}"

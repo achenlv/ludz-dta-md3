@@ -1,0 +1,28 @@
+<VirtualHost {{ item.value.domain }}:80>
+    ServerName {{ item.value.domain }}  
+    ServerAlias {{ item.value.alias }}.{{ item.value.domain }}
+    DocumentRoot {{ item.value.document_root }}  
+    <Directory {{ item.value.document_root }}>
+      Options Indexes FollowSymLinks
+      AllowOverride All
+      Require all granted
+    </Directory>
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+
+<IfModule mod_ssl.c>
+  <VirtualHost {{ item.value.domain }}:443>
+    SSLEngine on
+    SSLCertificateFile      /etc/ssl/private/{{ item.value.domain }}-selfsigned.crt
+    SSLCertificateKeyFile /etc/ssl/private/{{ item.value.domain }}-selfsigned.key
+    ServerName {{ item.value.domain }}  
+    ServerAlias {{ item.value.alias }}.{{ item.value.domain }}
+    DocumentRoot {{ item.value.document_root }}  
+    <Directory {{ item.value.document_root }}>
+      Options Indexes FollowSymLinks
+      AllowOverride All
+      Require all granted
+    </Directory>
+  </VirtualHost>
+</IfModule>                

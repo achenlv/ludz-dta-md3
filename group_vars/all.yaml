@@ -1,0 +1,11 @@
+backup_dir: /var/backup
+
+vhosts:
+  vhost1:
+    domain: dtamd3vh1.lv
+    alias: www
+    document_root: /var/www/vhost1/html
+  vhost2:
+    domain: dtamd3vh2.lv
+    alias: www
+    document_root: /var/www/vhost2/html

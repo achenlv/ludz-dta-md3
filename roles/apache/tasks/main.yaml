@@ -1,0 +1,91 @@
+---
+- name: Apache instalēšana
+  ansible.builtin.apt:
+    name: apache2
+    update_cache: true
+    state: latest 
+
+- name: Apache virtuālo hostu mapju izveide
+  file:
+    path: "/var/www/{{ item.key }}/html"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: 0755
+  with_items: "{{ vhosts | dict2items }}"
+
+- name: index.html failu kopēšana uz hostu mapēm
+  copy:
+    src: "files/{{ item.key }}/html/index.html"
+    dest: "/var/www/{{ item.key }}/html/index.html"
+    owner: www-data
+    group: www-data
+    mode: 0644
+  with_items: "{{ vhosts | dict2items }}"
+
+- name: Apache virtuālo hostu konfigurācija
+  template:
+    src: "templates/vhost.conf.j2"
+    dest: "/etc/apache2/sites-enabled/{{ item.key }}.conf"
+  with_items: "{{ vhosts | dict2items }}"
+
+- name: Apache noklusējuma hosta izslēgšana
+  file:
+    path: /etc/apache2/sites-enabled/000-default
+    state: absent
+
+- name: Pārbauda sertifikāta esamību
+  stat:
+    path: /etc/ssl/private/apache-selfsigned.crt
+  register: cert_file
+
+- name: Pašparakstītu sertifikātu ģenerēšana
+  block:
+    - name: Izveidot sertifikātu atslēgu mapi
+      file:
+        path: "/etc/ssl/private"
+        state: directory
+        owner: root
+        group: ssl-cert
+        mode: 0710
+
+    - name: Izveidot sertifikātu pieprasījumu mapi 
+      file:
+        path: "/etc/ssl/csr"
+        state: directory
+        owner: root
+        group: ssl-cert
+        mode: 0755
+
+    - name: Ģenerē pašparakstītā sertifikāta atslēgu
+      openssl_privatekey:
+        path: /etc/ssl/private/{{ item.value.domain }}-selfsigned.key
+      loop: "{{ vhosts | dict2items }}"
+
+    - name: Ģenerē pašparakstītā sertifikāta pieprasījumu
+      openssl_csr:
+        path: /etc/ssl/csr/{{ item.value.domain }}.csr
+        privatekey_path: /etc/ssl/private/{{ item.value.domain }}-selfsigned.key
+        common_name: "{{ item.value.domain }}"
+        subject_alt_name:
+          - "DNS:{{ item.value.domain }}"
+          - "DNS:{{ item.value.alias }}.{{ item.value.domain }}"
+      loop: "{{ vhosts | dict2items }}"
+
+    - name: Ģenerē pašparakstītā sertifikātu
+      openssl_certificate:
+        csr_path: /etc/ssl/csr/{{ item.value.domain }}.csr
+        path: /etc/ssl/private/{{ item.value.domain }}-selfsigned.crt
+        privatekey_path: /etc/ssl/private/{{ item.value.domain }}-selfsigned.key
+        provider: selfsigned
+      loop: "{{ vhosts | dict2items }}"
+  when: not cert_file.stat.exists 
+
+- name: Iekļaut SSL moduli
+  command: a2enmod ssl
+
+- name: Apache servisa pārlāde
+  service:
+    name: apache2
+    state: restarted
+

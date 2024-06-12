@@ -1,0 +1,9 @@
+---
+- name: Datoru tīklu administrēšana; MD3
+  hosts: md3
+  become: yes
+  
+  roles:
+    - bind
+    - backup
+    - apache

@@ -1,0 +1,40 @@
+---
+- name: Atrod publisko IP adresi
+  ansible.builtin.uri:
+    body: json
+    http_agent: "curl/8.5.0"
+    return_content: true
+    url: http://showip.net
+  register: publicip
+
+- name: Bind instalēšana
+  ansible.builtin.apt:
+    name:
+      - bind9
+      - bind9-host
+      - bind9utils
+      - bind9-doc
+      - dnsutils
+    update_cache: true
+    state: present 
+
+- name: Izveidot Bind zonas mapi 
+  file:
+    path: "/etc/bind/zones"
+    state: directory
+    owner: root
+    group: bind
+    mode: 0755
+
+- name: Izveido DNS zonas failus
+  template:
+    src: named.db.domain.j2
+    dest: /etc/bind/zones/db.{{ item.value.domain }}
+  loop: "{{ vhosts | dict2items }}"
+
+- name:  Sagatavot Bind konfigurāciju
+  template:
+    src: named.conf.local.j2
+    dest: /etc/bind/named.conf.local
+  with_items: "{{ vhosts | dict2items }}"
+  notify: Restart Bind9
